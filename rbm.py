@@ -19,21 +19,23 @@ class RBM:
         else:
             self.W = W
         if v_bias is None:
-            v_bias_val = np.zeros(n_hidden, dtype=theano.config.floatX)
+            v_bias_val = np.zeros(n_visiable, dtype=theano.config.floatX)
             self.v_bias = theano.shared(value=v_bias_val, name='v_bias', borrow=True)
         else:
             self.v_bias = v_bias
         if h_bias is None:
-            h_bias_val = np.zeros(n_visiable, dtype=theano.config.floatX)
+            h_bias_val = np.zeros(n_hidden, dtype=theano.config.floatX)
             self.h_bias = theano.shared(value=h_bias_val, name='h_bias', borrow=True)
         else:
             self.h_bias = h_bias
         self.params = [self.W, self.h_bias, self.v_bias]
         if theano_rng is None:
             self.theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
+        else:
+            self.theano_rng = theano_rng
 
     def propup(self, vis):
-        z = T.dot(vis, self.W) + self.v_bias
+        z = T.dot(vis, self.W) + self.h_bias
         activation = T.nnet.sigmoid(z)
         return [z, activation]
 
@@ -43,7 +45,7 @@ class RBM:
         return [pre_activate_v, activate_v, h_sample]
 
     def propdown(self, hid):
-        z = T.dot(hid, self.W.T) + self.h_bias
+        z = T.dot(hid, self.W.T) + self.v_bias
         activation = T.nnet.sigmoid(z)
         return [z, activation]
 
@@ -65,8 +67,8 @@ class RBM:
                 pre_activate_h, activate_h, v_sample]
 
     def free_energy(self, v_sample):
-        wx_b = T.dot(v_sample, self.W) + self.v_bias
-        v_term = T.dot(v_sample, self.h_bias)
+        wx_b = T.dot(v_sample, self.W) + self.h_bias
+        v_term = T.dot(v_sample, self.v_bias)
         h_term = T.sum(T.log(1 + T.exp(wx_b)), axis=1)
         return -v_term - h_term
 

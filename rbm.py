@@ -28,7 +28,8 @@ class RBM:
             self.h_bias = theano.shared(value=h_bias_val, name='h_bias', borrow=True)
         else:
             self.h_bias = h_bias
-        self.params = [self.W, self.h_bias, self.v_bias]
+        self.theata = theano.shared(value=np.array(0.1, dtype=theano.config.floatX), name='theata', borrow=True)
+        self.params = [self.W, self.h_bias, self.v_bias, self.theata]
         if theano_rng is None:
             self.theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
         else:
@@ -67,13 +68,14 @@ class RBM:
                 pre_activate_h, activate_h, v_sample]
 
     def free_energy(self, v_sample):
-        wx_b = T.dot(v_sample, self.W) + self.h_bias
-        v_term = T.dot(v_sample, self.v_bias)
+        wx_b = T.dot(v_sample, self.W)/self.theata + self.h_bias
+        v_term = T.sum((v_sample - self.v_bias)**2/(2*self.theata**2), axis=1)
+        #v_term = T.dot(v_sample, self.v_bias)
         h_term = T.sum(T.log(1 + T.exp(wx_b)), axis=1)
         return -v_term - h_term
 
     def get_reconstruction(self, pre_activate):
-        cross_entroy = T.mean(T.sum(self.inputs * T.log(T.nnet.sigmoid(pre_activate)) + (1 - self.inputs) * T.log(
+        cross_entroy = -T.mean(T.sum(self.inputs * T.log(T.nnet.sigmoid(pre_activate)) + (1 - self.inputs) * T.log(
             1 - T.nnet.sigmoid(pre_activate)), axis=1))
         return cross_entroy
 

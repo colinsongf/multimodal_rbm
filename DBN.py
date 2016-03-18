@@ -27,13 +27,13 @@ class DBN:
             if i == 0:
                 layer_input = self.x
             else:
-                layer_input = self.sigmodi_layers[-1].outputs
+                layer_input = self.sigmodi_layers[-1].output
 
-            sigmoid_layer = logistic.Hidden_layer(
-                inputs=layer_input,
+            sigmoid_layer = logistic.HiddenLayer(
+                rng=numpt_rng,
+                input=layer_input,
                 n_in=input_size,
                 n_out=hidden_layers_size[i],
-                rng=numpt_rng
             )
             self.sigmodi_layers.append(sigmoid_layer)
             self.params.extend(sigmoid_layer.params)
@@ -49,10 +49,9 @@ class DBN:
             self.rbm_layers.append(rbm_layer)
 
         self.logLayer = logistic.Softmax_layer(
-            inputs=self.sigmodi_layers[-1].outputs,
+            inputs=self.sigmodi_layers[-1].output,
             n_in=hidden_layers_size[-1],
             n_out=n_out,
-            rng=numpt_rng
         )
         self.params.extend(self.logLayer.params)
         self.finetune_cost = self.logLayer.nagetive_likehood(self.y)
@@ -89,7 +88,7 @@ class DBN:
 
         index = T.lscalar('index')
         gparams = T.grad(self.finetune_cost, self.params)
-        updates = [(param, g_param) for param, g_param in zip(self.params, gparams)]
+        updates = [(param, param - learning_rate*g_param) for param, g_param in zip(self.params, gparams)]
         train_fn = theano.function(
             inputs=[index],
             outputs=self.finetune_cost,
@@ -158,8 +157,9 @@ def test_DBN(finetune_lr=0.1, pretraining_epoches=100, pretrain_lr=0.01, k=1, \
                                                                     batch_size=batch_size,
                                                                     learning_rate=0.1)
     best_acc = np.inf
-    t1 = timeit.default_timer()
+
     for epoch in xrange(training_epoches):
+        t1 = timeit.default_timer()
         avg_cost_train = np.mean([train_fn(i) for i in xrange(n_train_batches)])
         valid_sc = np.mean([valid_score(i) for i in xrange(n_valid_batches)])
         print 'epoch = {}, train_cost = {}, valid_accury = {}, time = {}'.format(epoch, avg_cost_train, np.mean(valid_sc), timeit.default_timer()-t1)
@@ -168,9 +168,9 @@ def test_DBN(finetune_lr=0.1, pretraining_epoches=100, pretrain_lr=0.01, k=1, \
             with open('best_model.pkl', 'w') as f:
                 cPickle.dump(dbn, f)
             print 'save model with best auccracy = {}'.format(best_acc)
-    print 'The pretraining code ran for {} mins'.format(timeit.default_timer()-t1/60.)
+
 
 
 if __name__ == '__main__':
-    test_DBN(finetune_lr=0.1, pretraining_epoches=2, pretrain_lr=0.1, k=1, \
-             training_epoches=10, dataset='./dataset/mnist.pkl.gz', batch_size=20)
+    test_DBN(finetune_lr=0.1, pretraining_epoches=50, pretrain_lr=0.1, k=1, \
+             training_epoches=200, dataset='./dataset/mnist.pkl.gz', batch_size=20)
